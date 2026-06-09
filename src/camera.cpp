@@ -1,6 +1,11 @@
 #include <Arduino.h>
+
+// Câmera
 #include <esp_camera.h>
-// #include <your-edge-impulse-project_inferencing.h> // from exported .zip
+
+// Processamento
+#include <Person_Detection_-_ESP32_inferencing.h> // from exported .zip
+#include "edge-impulse-sdk/dsp/image/image.hpp"
 
 // MQTT
 #include <WiFi.h>
@@ -23,10 +28,37 @@ camera_config_t config = {
  .ledc_timer = LEDC_TIMER_0,
  .ledc_channel = LEDC_CHANNEL_0,
  .pixel_format = PIXFORMAT_JPEG,
- .frame_size = FRAMESIZE_SVGA,
- .jpeg_quality = 10, .fb_count = 2,
- .grab_mode = CAMERA_GRAB_LATEST
+ .frame_size = FRAMESIZE_QVGA, // FRAMESIZE_SVGA,
+ .jpeg_quality = 12, .fb_count = 1,
+ .fb_location = CAMERA_FB_IN_PSRAM,
+ .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
+//  .grab_mode = CAMERA_GRAB_WHEN_EMPTY // CAMERA_GRAB_LATEST
 }; 
+
+// Processamento
+static uint8_t *snapshot_buf = nullptr;
+
+#define EI_CAMERA_RAW_FRAME_BUFFER_COLS 320
+#define EI_CAMERA_RAW_FRAME_BUFFER_ROWS 240
+#define EI_CAMERA_FRAME_BYTE_SIZE 3
+
+static int ei_camera_get_data(size_t offset, size_t length, float *out_ptr)
+{
+    size_t pixel_ix = offset * 3;
+    size_t pixels_left = length;
+    size_t out_ptr_ix = 0;
+
+    while (pixels_left != 0) {
+        out_ptr[out_ptr_ix] = (snapshot_buf[pixel_ix + 2] << 16) +
+            (snapshot_buf[pixel_ix + 1] << 8) +
+            snapshot_buf[pixel_ix];
+        out_ptr_ix++;
+        pixel_ix += 3;
+        pixels_left--;
+    }
+
+    return 0;
+}
 
 // MQTT
 WiFiClientSecure conexaoSegura;
@@ -34,7 +66,7 @@ MQTTClient mqtt(1000);
 
 void reconectarWiFi() {
     if (WiFi.status() != WL_CONNECTED) {
-        WiFi.begin("NOME DA REDE", "SENHA DA REDE");
+        WiFi.begin("LabIoT", "4n1m4l5@))!!");
         Serial.print("Conectando ao WiFi...");
         while (WiFi.status() != WL_CONNECTED) {
             Serial.print(".");
@@ -49,26 +81,130 @@ void reconectarMQTT() {
     if (!mqtt.connected()) {
         Serial.print("Conectando MQTT...");
         while(!mqtt.connected()) {
-            mqtt.connect("SEU ID", "LOGIN", "SENHA");
+            mqtt.connect("ProjIOTCam", "aula", "zowmad-tavQez");
             Serial.print(".");
             delay(1000);
         }
         Serial.println(" conectado!");
 
-        mqtt.subscribe("topico1"); // qos = 0
-        mqtt.subscribe("topico2/+/parametro", 1); // qos = 1
+        // mqtt.subscribe("iot/camera"); // qos = 0
+        // mqtt.subscribe("topico2/+/parametro", 1); // qos = 1
     }
 }
 
 void tirarFotoEEnviarParaMQTT () {
     camera_fb_t* foto = esp_camera_fb_get();
-    if (mqtt.publish("topico", (const char*)foto->buf, foto->len)) {
-        Serial.println("Foto enviada com sucesso");
-    } else {
-        Serial.println("Falha ao enviar foto");
+    if (!foto) {
+        Serial.println("Erro ao tirar foto");
+        return;
     }
 
-    esp_camera_fb_return(foto); // libera memória
+    // if (mqtt.publish("iot/camera", (const char*)foto->buf, foto->len)) Serial.println("Foto enviada com sucesso");
+    // else Serial.println("Falha ao enviar foto");
+
+    snapshot_buf = (uint8_t*)malloc(EI_CAMERA_RAW_FRAME_BUFFER_COLS *
+        EI_CAMERA_RAW_FRAME_BUFFER_ROWS * EI_CAMERA_FRAME_BYTE_SIZE
+    );
+    if (!snapshot_buf) {
+        Serial.println("Erro ao alocar memória");
+        esp_camera_fb_return(foto);
+        return;
+    }
+
+    bool converted = fmt2rgb888(
+        foto->buf,
+        foto->len,
+        PIXFORMAT_JPEG,
+        snapshot_buf
+    );
+
+    // Free buffer of cam
+    esp_camera_fb_return(foto);
+
+    if (!converted) {
+        Serial.println("JPEG -> RGB conversion failed");
+        free(snapshot_buf);
+        return;
+    }
+
+    // Resize if model input differs from QVGA
+    if (EI_CLASSIFIER_INPUT_WIDTH != EI_CAMERA_RAW_FRAME_BUFFER_COLS ||
+        EI_CLASSIFIER_INPUT_HEIGHT != EI_CAMERA_RAW_FRAME_BUFFER_ROWS) {
+        ei::image::processing::crop_and_interpolate_rgb888(
+            snapshot_buf,
+            EI_CAMERA_RAW_FRAME_BUFFER_COLS,
+            EI_CAMERA_RAW_FRAME_BUFFER_ROWS,
+            snapshot_buf,
+            EI_CLASSIFIER_INPUT_WIDTH,
+            EI_CLASSIFIER_INPUT_HEIGHT
+        );
+    }
+
+    // Feed frame to Edge Impulse
+    signal_t signal;
+    signal.total_length = EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT;
+
+    signal.get_data = &ei_camera_get_data;
+
+    ei_impulse_result_t result = { 0 };
+
+    EI_IMPULSE_ERROR err = run_classifier(&signal, &result, false);
+
+    if (err != EI_IMPULSE_OK) {
+        Serial.print("Failed to run classifier");
+        Serial.println(err);
+
+        free(snapshot_buf);
+        snapshot_buf = nullptr;
+        return;
+    }
+
+    bool person_present = false;
+
+    for (size_t ix = 0; ix < result.bounding_boxes_count; ix++) {
+        auto &bb = result.bounding_boxes[ix];
+        if (bb.value == 0) continue;
+
+        Serial.printf(
+            "%s %.2f x=%u y=%u w=%u h=%u\n",
+            bb.label,
+            bb.value,
+            bb.x,
+            bb.y,
+            bb.width,
+            bb.height
+        );
+
+        if (bb.value > 0.6f) {
+            person_present = true;
+        }
+    }
+
+    Serial.println(person_present ? "Person found" : "No person");
+
+    free(snapshot_buf);
+    // snapshot_buf = nullptr;
+
+    // // ei_camera_get_data fills the EI input buffer from fb->buf
+    // // (wire-up depends on your EI library version — see EI's esp32 camera example)
+    // numpy::signal_from_buffer((float*)foto->buf, EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT, &signal);
+
+    // ei_impulse_result_t result;
+    // run_classifier(&signal, &result, false);
+
+    // bool person_present = false;
+    // for (size_t ix = 0; ix < result.bounding_boxes_count; ix++) {
+    //     if (result.bounding_boxes[ix].value > 0.6f) { // confidence threshold
+    //         person_present = true;
+    //         Serial.println("Person found");
+    //         // String color = detectShirtColor(foto, result);
+    //         // Serial.printf("Person detected! Shirt color: %s (conf: %.2f)\n",
+    //         //     color.c_str(), result.bounding_boxes[ix].value);
+    //     }
+    // }
+    // if (!person_present) Serial.println("No person.");
+
+    // esp_camera_fb_return(foto); // libera memória
 }
 
 // ── Shirt color detection ──────────────────────────────────────────────
@@ -133,47 +269,32 @@ void setup() {
 
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        Serial.printf("Erro na câmera: 0x%x", err);
+        Serial.printf("Erro na câmera: 0x%x\n", err);
         while (true);
     }
     reconectarWiFi();
     conexaoSegura.setCACert(certificado1);
-    mqtt.begin("mqtt.janks.dev.br", 8883, conexaoSegura);
+    // mqtt.begin("mqtt.janks.dev.br", 8883, conexaoSegura);
     // mqtt.onMessage(recebeuMensagem);
-    mqtt.setKeepAlive(10);
-    mqtt.setWill("tópico da desconexão", "conteúdo");
-    reconectarMQTT();
+    // mqtt.setKeepAlive(100);
+    // mqtt.setWill("tópico da desconexão", "conteúdo");
+    // reconectarMQTT();
 }
+
+unsigned long long lastTime = 0;
 
 void loop() {
     reconectarWiFi();
-    reconectarMQTT();
+    // reconectarMQTT();
     mqtt.loop(); 
 
-    tirarFotoEEnviarParaMQTT();
+    if (millis() - lastTime >= 1000) {
+        tirarFotoEEnviarParaMQTT();
+        lastTime = millis();
+    }
 
     // camera_fb_t* fb = esp_camera_fb_get();
     // if (!fb) { Serial.println("Frame capture failed"); return; }
-
-    // // Feed frame to Edge Impulse
-    // signal_t signal;
-    // // ei_camera_get_data fills the EI input buffer from fb->buf
-    // // (wire-up depends on your EI library version — see EI's esp32 camera example)
-    // numpy::signal_from_buffer((float*)fb->buf, EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT, &signal);
-
-    // ei_impulse_result_t result;
-    // run_classifier(&signal, &result, false);
-
-    // bool person_present = false;
-    // for (size_t ix = 0; ix < result.bounding_boxes_count; ix++) {
-    //     if (result.bounding_boxes[ix].value > 0.6f) { // confidence threshold
-    //         person_present = true;
-    //         String color = detectShirtColor(fb, result);
-    //         Serial.printf("Person detected! Shirt color: %s (conf: %.2f)\n",
-    //             color.c_str(), result.bounding_boxes[ix].value);
-    //     }
-    // }
-    // if (!person_present) Serial.println("No person.");
 
     // esp_camera_fb_return(fb);
     // delay(100);
