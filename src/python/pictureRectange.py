@@ -11,15 +11,15 @@ current_image = None
 def on_connect(client, userdata, flags, rc, properties=None):
     print("Connected to MQTT Broker successfully!")
     # Subscribe to your topics
-    client.subscribe("iot/camera")
-    client.subscribe("iot/camera/coord")
+    client.subscribe("A1/esp32/camera")
+    client.subscribe("A1/esp32/camera/coord")
 
 
 def on_message(client, userdata, msg):
     global current_image
     
     # 1. Handle Incoming Photo
-    if msg.topic == "iot/camera":
+    if msg.topic == "A1/esp32/camera":
         # Convert raw byte payload into a numpy array
         np_buffer = np.frombuffer(msg.payload, dtype=np.uint8)
         # Decode the numpy array into an OpenCV BGR image
@@ -27,7 +27,7 @@ def on_message(client, userdata, msg):
         print("Image received and buffered.")
         
     # 2. Handle Incoming JSON Bounding Box
-    elif msg.topic == "iot/camera/coord":
+    elif msg.topic == "A1/esp32/camera/coord":
         if current_image is None:
             print("Received coordinates, but no image is available yet. Skipping.")
             return
@@ -46,6 +46,10 @@ def on_message(client, userdata, msg):
                 y = int(data['y'] * scale_y)
                 w = int(data['w'] * scale_x)
                 h = int(data['h'] * scale_y)
+
+                r = int(data["corCamisa_r"])
+                g = int(data["corCamisa_g"])
+                b = int(data["corCamisa_b"])
                 
                 # OpenCV requires top-left (x1, y1) and bottom-right (x2, y2) coordinates
                 top_left = (x, y)
@@ -54,7 +58,7 @@ def on_message(client, userdata, msg):
                 # Draw the box (Color is BGR: Green is (0, 255, 0), thickness is 2 pixels)
                 # Working on a copy so we don't degrade the original buffered image
                 
-                cv2.rectangle(annotated_image, top_left, bottom_right, (0, 255, 0), 2)
+                cv2.rectangle(annotated_image, top_left, bottom_right, (r,g,b), 2)
             
             # Save or process your annotated image
             cv2.imwrite("output_with_box.jpg", annotated_image)
