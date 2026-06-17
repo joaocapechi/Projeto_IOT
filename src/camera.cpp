@@ -29,7 +29,9 @@ camera_config_t config = {
  .ledc_timer = LEDC_TIMER_0,
  .ledc_channel = LEDC_CHANNEL_0,
  .pixel_format = PIXFORMAT_JPEG,
- .frame_size = FRAMESIZE_QVGA, // FRAMESIZE_SVGA,
+//  .frame_size = FRAMESIZE_QVGA, // (320  x 240) 
+ .frame_size = FRAMESIZE_SVGA, // (800 x 600)
+//  .frame_size =FRAMESIZE_VGA, // (640 x 480)
  .jpeg_quality = 12, .fb_count = 1,
  .fb_location = CAMERA_FB_IN_PSRAM,
  .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
@@ -60,6 +62,64 @@ static int ei_camera_get_data(size_t offset, size_t length, float *out_ptr)
         pixels_left--;
     }
     return 0;
+}
+
+typedef struct rgb {
+    uint8_t R;
+    uint8_t G;
+    uint8_t B;
+} RGB;
+
+RGB mediaCorCamisa(uint8_t *img, int imgW, int imgH, int x, int y, int w, int h) {
+    long rSum = 0;
+    long gSum = 0;
+    long bSum = 0;
+    long count = 0;
+
+    int shirtX = x + w * 0.2;
+    int shirtY = y + h * 0.3;
+    int shirtW = w * 0.6;
+    int shirtH = h * 0.35;
+
+    for (int py = shirtY; py < shirtY + shirtH; py++) {
+        for (int px = shirtX; px < shirtX + shirtW; px++) {
+            if (px < 0 || py < 0 || px >= imgW || py >= imgH) continue;
+            
+            int idx = (py * imgW + px) * 3;
+            rSum += img[idx];
+            gSum += img[idx+1];
+            bSum += img[idx+2];
+            count++;
+        }
+    }
+
+    RGB color;
+
+    if (count == 0) {
+        color.R = color.G = color.B = 0;
+    } else {
+        color.R = rSum / count;
+        color.G = gSum / count;
+        color.B = bSum / count;
+    }
+    return color;
+}
+
+String classificarCor(RGB c) {
+    uint8_t r = c.R;
+    uint8_t g = c.G;
+    uint8_t b = c.B;
+
+    if (r < 50 && g < 50 && b < 50) return "black";
+    else if (r > 200 && g > 200 && b > 200) return "white";
+    else if (abs(r-g) < 20 &&
+        abs(r-b) < 20 && abs(g-b) < 20
+    ) return "gray";
+    else if (r > g + 40 && r > b + 40) return "red";
+    else if (g > r + 40 && g > b + 40) return "green";
+    else if (b > r + 40 && b > g + 40) return "blue";
+    else if (r > 150 && g > 100 && b < 80) return "yellow";
+    else return "unknown";
 }
 
 // MQTT
@@ -100,7 +160,7 @@ void tirarFotoEEnviarParaMQTT () {
         return;
     }
 
-    if (mqtt.publish("iot/camera", (const char*)foto->buf, foto->len)) Serial.println("Foto enviada com sucesso");
+    if (mqtt.publish("A1/esp32/camera", (const char*)foto->buf, foto->len)) Serial.println("Foto enviada com sucesso");
     else Serial.println("Falha ao enviar foto");
 
     size_t required_size = foto->width * foto->height * EI_CAMERA_FRAME_BYTE_SIZE;
@@ -188,6 +248,28 @@ void tirarFotoEEnviarParaMQTT () {
             coord["h"] = bb.height;
             coord["ei_width"] = EI_CLASSIFIER_INPUT_WIDTH;
             coord["ei_height"] = EI_CLASSIFIER_INPUT_HEIGHT;
+            
+            RGB corCamisaMedia = mediaCorCamisa(
+                snapshot_buf,
+                EI_CLASSIFIER_INPUT_WIDTH,
+                EI_CLASSIFIER_INPUT_HEIGHT,
+                bb.x,
+                bb.y,
+                bb.width,
+                bb.height
+            );
+            
+            String colorName = classificarCor(corCamisaMedia);
+            Serial.printf(
+                "Camisa: %s RGB(%u, %u, %u)\n",
+                colorName.c_str(),
+                corCamisaMedia.R,
+                corCamisaMedia.G,
+                corCamisaMedia.B
+            );
+            coord["corCamisa_r"] = corCamisaMedia.R;
+            coord["corCamisa_g"] = corCamisaMedia.G;
+            coord["corCamisa_b"] = corCamisaMedia.B;
             coords.add(coord);
         }
     }
@@ -195,7 +277,7 @@ void tirarFotoEEnviarParaMQTT () {
     if (person_present) {
         String string_coords;
         serializeJson(coords, string_coords);
-        mqtt.publish("iot/camera/coord", string_coords);
+        mqtt.publish("A1/esp32/camera/coord", string_coords);
     }
 
     Serial.println(person_present ? "Person found" : "No person");
