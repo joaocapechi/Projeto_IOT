@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 
 // Câmera
 #include <esp_camera.h>
@@ -161,7 +162,8 @@ void tirarFotoEEnviarParaMQTT () {
     bool person_present = false;
     ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",
                 result.timing.dsp, result.timing.classification, result.timing.anomaly);
-
+    
+    JsonDocument coords;
     for (size_t ix = 0; ix < result.bounding_boxes_count; ix++) {
         auto &bb = result.bounding_boxes[ix];
         if (bb.value == 0) continue;
@@ -176,9 +178,24 @@ void tirarFotoEEnviarParaMQTT () {
             bb.height
         );
 
-        if (bb.value > 0.6f) {
+        if (bb.value > 0.75f) {
+            JsonDocument coord;
             person_present = true;
+
+            coord["x"] = bb.x;
+            coord["y"] = bb.y;
+            coord["w"] = bb.width;
+            coord["h"] = bb.height;
+            coord["ei_width"] = EI_CLASSIFIER_INPUT_WIDTH;
+            coord["ei_height"] = EI_CLASSIFIER_INPUT_HEIGHT;
+            coords.add(coord);
         }
+    }
+
+    if (person_present) {
+        String string_coords;
+        serializeJson(coords, string_coords);
+        mqtt.publish("iot/camera/coord", string_coords);
     }
 
     Serial.println(person_present ? "Person found" : "No person");
