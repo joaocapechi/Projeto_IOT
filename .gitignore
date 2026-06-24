@@ -5,3 +5,5 @@ examples/
 libMLAntigo/
 venv/
 output_with_box.jpg
+detected_person.jpg
+yolov8n.pt

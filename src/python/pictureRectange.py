@@ -4,9 +4,11 @@ import numpy as np
 import paho.mqtt.client as mqtt
 import ssl 
 import certifi
+from ultralytics import YOLO
 
 # Global state to hold the latest image
 current_image = None
+model = YOLO("yolov8n.pt")
 
 def on_connect(client, userdata, flags, rc, properties=None):
     print("Connected to MQTT Broker successfully!")
@@ -14,6 +16,28 @@ def on_connect(client, userdata, flags, rc, properties=None):
     client.subscribe("A1/esp32/camera")
     client.subscribe("A1/esp32/camera/coord")
 
+def get_dominant_color(image_roi):
+    """Finds the dominant color and consistently returns (color_name, bgr_tuple)."""
+    small_roi = cv2.resize(image_roi, (1, 1), interpolation=cv2.INTER_AREA)
+    b, g, r = small_roi[0, 0]
+    
+    # Safely convert numpy values to standard Python integers
+    b, g, r = int(b), int(g), int(r)
+    
+    # Classify basic colors and map them to their distinct BGR values for drawing
+    if r > 180 and g > 180 and b > 180: 
+        return "White", (255, 255, 255)
+    if r < 50 and g < 50 and b < 50: 
+        return "Black", (0, 0, 0)
+    if r > g and r > b: 
+        return "Red", (0, 0, 255)      # OpenCV uses BGR
+    if g > r and g > b: 
+        return "Green", (0, 255, 0)
+    if b > r and b > g: 
+        return "Blue", (255, 0, 0)
+    
+    # Fallback if it's an unclassified color mix
+    return f"RGB({r},{g},{b})", (b, g, r)
 
 def on_message(client, userdata, msg):
     global current_image
@@ -24,48 +48,101 @@ def on_message(client, userdata, msg):
         np_buffer = np.frombuffer(msg.payload, dtype=np.uint8)
         # Decode the numpy array into an OpenCV BGR image
         current_image = cv2.imdecode(np_buffer, cv2.IMREAD_COLOR)
+
+        if current_image is not None:
+            results = model(current_image, classes=0, verbose=False)
+
+        for result in results:
+            boxes = result.boxes
+            for box in boxes:
+                # Get bounding box coordinates
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                
+                # --- Shirt Localization ---
+                # A shirt typically resides in the upper-middle region of a person's bounding box
+                person_height = y2 - y1
+                shirt_y1 = y1 + int(person_height * 0.2) # Skip the head/face
+                shirt_y2 = y1 + person_height
+                
+                # Crop the shirt ROI (Region of Interest)
+                shirt_roi = current_image[shirt_y1:shirt_y2, x1:x2]
+                
+                if shirt_roi.size > 0:
+                    # 1. Properly unpack the string name and the BGR tuple
+                    color_name, box_color = get_dominant_color(shirt_roi)
+                    print(f"Detected person with {color_name} shirt.")
+                    
+                    # 2. Draw the bounding box using the BGR tuple
+                    cv2.rectangle(current_image, (x1, y1), (x2, y2), box_color, 2)
+                    
+                    # 3. Add text overlay using the name string
+                    # Choose a high-contrast text color if the shirt is black
+                    text_color = (0, 255, 255) if color_name == "Black" else box_color
+                    if color_name in ["Black", "Blue"]:
+                        client.publish("A1/camera/alerta", payload="Alerta", qos=0)
+                    
+        
+        # --- SAVE THE IMAGE HERE ---
+        # This saves the image in the same folder as your Python script
+        cv2.imwrite("detected_person.jpg", current_image)
         print("Image received and buffered.")
         
     # 2. Handle Incoming JSON Bounding Box
-    elif msg.topic == "A1/esp32/camera/coord":
-        if current_image is None:
-            print("Received coordinates, but no image is available yet. Skipping.")
-            return
+    # elif msg.topic == "A1/esp32/camera/coord":
+    #     if current_image is None:
+    #         print("Received coordinates, but no image is available yet. Skipping.")
+    #         return
         
-        try:
-            # Parse the JSON payload
-            datas = json.loads(msg.payload.decode('utf-8'))
-            annotated_image = current_image.copy()
-            for data in datas:
-                img_h, img_w = annotated_image.shape[:2]
+    #     try:
+    #         # Parse the JSON payload
+    #         datas = json.loads(msg.payload.decode('utf-8'))
+    #         annotated_image = current_image.copy()
+    #         for data in datas:
+    #             img_h, img_w = annotated_image.shape[:2]
 
-                scale_x = img_w / data['ei_width']
-                scale_y = img_h / data['ei_height']
+    #             scale_x = img_w / data['ei_width']
+    #             scale_y = img_h / data['ei_height']
 
-                x = int(data['x'] * scale_x)
-                y = int(data['y'] * scale_y)
-                w = int(data['w'] * scale_x)
-                h = int(data['h'] * scale_y)
+    #             x = int(data['x'] * scale_x)
+    #             y = int(data['y'] * scale_y)
+    #             w = int(data['w'] * scale_x)
+    #             h = int(data['h'] * scale_y)
 
-                r = int(data["corCamisa_r"])
-                g = int(data["corCamisa_g"])
-                b = int(data["corCamisa_b"])
+    #             margin_x = int(0.2 * w)
+    #             margin_y = int(0.2 * y)
+
+    #             region = annotated_image[
+    #                 y + margin_y:y + h - margin_y,
+    #                 x + margin_x:x+ w - margin_x
+    #             ]
+    #             mean_b, mean_g, mean_r = cv2.mean(region)[:3]
+    #             print(f"Blue: {mean_b}\tGreen:{mean_g}\tRed:{mean_g}")
+
+    #             r = int(data["corCamisa_r"])
+    #             g = int(data["corCamisa_g"])
+    #             b = int(data["corCamisa_b"])
                 
-                # OpenCV requires top-left (x1, y1) and bottom-right (x2, y2) coordinates
-                top_left = (x, y)
-                bottom_right = (x + w, y + h)
+    #             # OpenCV requires top-left (x1, y1) and bottom-right (x2, y2) coordinates
+    #             top_left = (x, y)
+    #             bottom_right = (x + w, y + h)
                 
-                # Draw the box (Color is BGR: Green is (0, 255, 0), thickness is 2 pixels)
-                # Working on a copy so we don't degrade the original buffered image
+    #             # Draw the box (Color is BGR: Green is (0, 255, 0), thickness is 2 pixels)
+    #             # Working on a copy so we don't degrade the original buffered image
                 
-                cv2.rectangle(annotated_image, top_left, bottom_right, (r,g,b), 2)
+    #             cv2.rectangle(
+    #                 annotated_image,
+    #                 top_left,
+    #                 bottom_right,
+    #                 (int(mean_r), int(mean_g), int(mean_b)),
+    #                 2
+    #             )
             
-            # Save or process your annotated image
-            cv2.imwrite("output_with_box.jpg", annotated_image)
-            print("Box successfully drawn! Saved to output_with_box.jpg")
+    #         # Save or process your annotated image
+    #         # cv2.imwrite("output_with_box.jpg", annotated_image)
+    #         print("Box successfully drawn! Saved to output_with_box.jpg")
             
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            print(f"Error processing JSON metadata: {e}")
+    #     except (json.JSONDecodeError, KeyError, ValueError) as e:
+    #         print(f"Error processing JSON metadata: {e}")
 
 # Initialize client using Paho MQTT v2.x syntax
 client = mqtt.Client()

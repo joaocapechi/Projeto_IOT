@@ -311,7 +311,7 @@ void loop() {
     reconectarMQTT();
     mqtt.loop(); 
 
-    if (millis() - lastTime >= 3000) {
+    if (millis() - lastTime >= 2000) {
         tirarFotoEEnviarParaMQTT();
         lastTime = millis();
     }
