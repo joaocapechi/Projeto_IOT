@@ -1,3 +1,18 @@
+# VSCode / PlatoformIO
 .pio
 .vscode/
-src/certificados.h
+
+# ESP32 libraries
+certificados.h
+examples/
+libMLAntigo/
+MQTT/
+ArduinoJson/
+
+# Python
+venv/
+.env
+
+# Other files
+*.jpg
+yolov8n.pt
