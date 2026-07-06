@@ -10,9 +10,12 @@
 #include <WiFiClientSecure.h>
 #include "certificados.h"
 
+String wifiName = "";
+String wifiPassword = "";
+
 void reconectarWiFi() {
     if (WiFi.status() != WL_CONNECTED) {
-        WiFi.begin("LabIoT", "4n1m4l5@))!!");
+        WiFi.begin(wifiName, wifiPassword);
         Serial.print("Conectando ao WiFi...");
         while (WiFi.status() != WL_CONNECTED) {
             Serial.print(".");
@@ -85,16 +88,23 @@ static int ei_camera_get_data(size_t offset, size_t length, float *out_ptr)
     return 0;
 }
 
-// MQTT
+/*
+********************************************************************************************
+******************************************* MQTT *******************************************
+********************************************************************************************
+*/
 #include <MQTT.h> 
+
 WiFiClientSecure conexaoSegura;
 MQTTClient mqtt(1000); 
+String usernameMQTT = "";
+String passwordMQTT = "";
 
 void reconectarMQTT() {
     if (!mqtt.connected()) {
         Serial.print("Conectando MQTT...");
         while(!mqtt.connected()) {
-            mqtt.connect("ProjIOTCam", "aula", "zowmad-tavQez");
+            mqtt.connect("ProjIOTCam", usernameMQTT.c_str(), passwordMQTT.c_str());
             Serial.print(".");
             delay(1000);
         }

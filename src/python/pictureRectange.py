@@ -1,15 +1,21 @@
-import json
+import certifi
 import cv2
+from dotenv import load_dotenv
 import numpy as np
+import os
 import paho.mqtt.client as mqtt
 import ssl 
-import certifi
 from ultralytics import YOLO
+
+load_dotenv()
 
 # Global state to hold the latest image
 current_image = None
 model = YOLO("yolov8n.pt")
 
+# MQTT login
+USERNAME = os.getenv("username")
+PASSWORD = os.getenv("password")
 
 def on_connect(client, userdata, flags, rc, properties=None):
     print("Connected to MQTT Broker successfully!")
@@ -107,7 +113,7 @@ def main():
     # Initialize client using Paho MQTT v2.x syntax
     client = mqtt.Client()
     client.tls_set(certifi.where())
-    client.username_pw_set(username="aula", password="zowmad-tavQez")
+    client.username_pw_set(username=USERNAME, password=PASSWORD)
     client.on_connect = on_connect
     client.on_message = on_message
 
