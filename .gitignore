@@ -3,7 +3,8 @@
 src/certificados.h
 examples/
 libMLAntigo/
+MQTT/
+ArduinoJson/
 venv/
-output_with_box.jpg
-detected_person.jpg
+*.jpg
 yolov8n.pt
