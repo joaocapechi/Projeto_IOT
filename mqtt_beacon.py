@@ -20,7 +20,7 @@ SENHA = "zowmad-tavQez"
 
 NUMERO_ESPS = 4
 MINIMO_ESPS = 3
-TIMEOUT = 5
+TIMEOUT = 30  # 20s de medição no ESP + 10s de margem para o envio/round-trip do MQTT
 
 BEACON_IDS = [
     "51:00:23:11:04:6d",
