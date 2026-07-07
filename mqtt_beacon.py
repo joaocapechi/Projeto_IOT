@@ -1,24 +1,54 @@
-import paho.mqtt.client as mqtt
-import ssl
-import certifi
 import json
+import threading
 import time
-import numpy as np
-from trilateracao import trilateracao3d
-import json
 
-#CONSTANTES:
+import certifi
+import numpy as np
+import paho.mqtt.client as mqtt
+
+from trilateracao import trilateracao3d
+
+# ============================================================
+# CONFIGURAÇÕES
+# ============================================================
+
 HOST = "mqtt.janks.dev.br"
 PORTA = 8883
-NUMERO_ESPS = 4
-BEACON_IDS = ["51:00:23:11:04:6d", "51:00:23:11:04:38"]
 
 NOME_USUARIO = "aula"
 SENHA = "zowmad-tavQez"
 
-BEACON_ATUAL = BEACON_IDS[0]
+NUMERO_ESPS = 4
+MINIMO_ESPS = 3
+TIMEOUT = 5
+
+BEACON_IDS = [
+    "51:00:23:11:04:6d",
+    "51:00:23:11:04:38",
+]
+
+TOPICO_LOCALIZACAO = "A1/esp32/localizacao"
+
+TOPICOS_DISTANCIA = [
+    f"A1/esp32/{i}/distancia"
+    for i in range(1, NUMERO_ESPS + 1)
+]
+
+INDICES = {
+    topico: i
+    for i, topico in enumerate(TOPICOS_DISTANCIA)
+}
+
+# ============================================================
+# ESTADO
+# ============================================================
+
+lock = threading.Lock()
+
+BEACON_ATUAL = None
+
 ready = [False] * NUMERO_ESPS
-distancias = [0] * NUMERO_ESPS
+distancias = [0.0] * NUMERO_ESPS
 
 posicoes_esp32 = np.array([
     [0, 0, 0],
@@ -27,169 +57,205 @@ posicoes_esp32 = np.array([
     [0, 0, 10]
 ])
 
-#recebo
-INDICES = {
-    "A1/esp32/1/distancia": 0,
-    "A1/esp32/2/distancia": 1,
-    "A1/esp32/3/distancia": 2,
-    "A1/esp32/4/distancia": 3,
-    }
+# ============================================================
 
-# ----------------------------------------------------------------------------------#
+
+def numero_respostas():
+    with lock:
+        return sum(ready)
+
+
+def resetar_estado():
+    with lock:
+        ready[:] = [False] * NUMERO_ESPS
+        distancias[:] = [0.0] * NUMERO_ESPS
+
 
 def enviar_para_banco_dados(client, posicao, beacon_id):
-    posicao_x = posicao[0]
-    posicao_y = posicao[1]
-    posicao_z = posicao[2]
-
-    dados = {
-        "posicao_x": float(posicao_x),
-        "posicao_y": float(posicao_y),
-        "posicao_z": float(posicao_z),
+    payload = json.dumps({
+        "posicao_x": float(posicao[0]),
+        "posicao_y": float(posicao[1]),
+        "posicao_z": float(posicao[2]),
         "beacon_id": beacon_id,
-    }
+    })
 
-    payload = json.dumps(dados)
+    client.publish(TOPICO_LOCALIZACAO, payload=payload, qos=2)
 
-    client.publish(f"A1/esp32/localizacao", payload=payload, qos=2)
+    print("Localização publicada:", payload)
 
-    print(f"Mensagem enviada para o banco de dados. Dados enviados: {dados}")
 
-def imprime_informacoes(client=None, titulo="DEBUG"):
-    print("\n" + "=" * 70)
-    print(f" {titulo}")
-    print("=" * 70)
+def imprime_informacoes():
 
-    print("\n--- MQTT ---")
-    print(f"Host: {HOST}")
-    print(f"Porta: {PORTA}")
-    print(f"Usuário: {NOME_USUARIO}")
-    if client:
-        print(f"MQTT conectado: {client.is_connected()}")
-    else:
-        print("Cliente MQTT: não informado")
+    with lock:
 
-    print("\n--- BEACON ---")
-    print(f"Beacon atual: {BEACON_ATUAL}")
-    print(f"Lista de beacons: {BEACON_IDS}")
+        print("=" * 60)
+        print("Beacon:", BEACON_ATUAL)
 
-    print("\n--- ESP32 ---")
-    print(f"Quantidade ESPs: {NUMERO_ESPS}")
+        for i in range(NUMERO_ESPS):
 
-    for i in range(NUMERO_ESPS):
-        print(f"\nESP {i+1}")
-        print(f"  Posição: {posicoes_esp32[i]}")
-        print(f"  Ready: {ready[i]}")
-        print(f"  Distância: {distancias[i]}")
+            print(
+                f"ESP{i+1}: "
+                f"Ready={ready[i]} "
+                f"Dist={distancias[i]}"
+            )
 
-    print("\n--- STATUS GERAL ---")
-    print(f"Todos prontos: {all(ready)}")
-    print(f"Ready vetor: {ready}")
-    print(f"Distâncias: {distancias}")
+        print(
+            f"Recebidos: {sum(ready)}/{NUMERO_ESPS}"
+        )
 
-    print("\n--- TÓPICOS ---")
-    for topico, indice in INDICES.items():
-        print(f"{topico} -> ESP {indice+1}")
+        print("=" * 60)
 
-    print("\n--- MATRIZ DE POSIÇÕES ---")
-    print(posicoes_esp32)
 
-    print("=" * 70 + "\n")
+# ============================================================
 
 
 def on_connect(client, userdata, flags, reason_code, properties):
-    print("Conectado!")
 
-    client.subscribe("A1/esp32/1/distancia")
-    client.subscribe("A1/esp32/2/distancia")
-    client.subscribe("A1/esp32/3/distancia")
-    client.subscribe("A1/esp32/4/distancia")
+    print("MQTT conectado.")
+
+    for topico in TOPICOS_DISTANCIA:
+        client.subscribe(topico)
+
 
 def on_message(client, userdata, msg):
+
     global BEACON_ATUAL
 
-    topico = msg.topic
-    mensagem = msg.payload.decode()
-    #print("Tópico:", topico)
-    #print("Mensagem:", mensagem)
+    if msg.topic not in INDICES:
+        return
 
-    dados = json.loads(mensagem)
+    try:
 
-    beacon_id = dados["beacon_id"]
-    distancia = dados["distancia"]
+        dados = json.loads(msg.payload.decode())
 
-    if topico not in INDICES:
+        beacon_id = dados["beacon_id"]
+        distancia = float(dados["distancia"])
+
+    except (json.JSONDecodeError, KeyError, ValueError):
+
+        print("Mensagem inválida recebida.")
+
         return
 
     if beacon_id != BEACON_ATUAL:
         return
 
-    indice = INDICES[topico]
+    indice = INDICES[msg.topic]
 
-    ready[indice] = True
-    distancias[indice] = float(distancia)
+    with lock:
 
-def notifica_todos_esps_pendentes(mqtt_client, beacon_id):
-    for i in range(NUMERO_ESPS):
-        #if not ready[i]:
-        print(f"Notifiquei o esp {i+1}")
-        mqtt_client.publish(f"A1/esp32/{i+1}/{beacon_id}", payload=".", qos=1)   
+        ready[indice] = True
+        distancias[indice] = distancia
+
+    print(f"ESP {indice+1} respondeu ({distancia:.2f} m)")
+
+
+# ============================================================
+
+
+def notificar_esps(client, beacon_id):
+
+    for esp in range(1, NUMERO_ESPS + 1):
+
+        client.publish(
+            f"A1/esp32/{esp}/{beacon_id}",
+            payload=".",
+            qos=1
+        )
+
+        print(f"Solicitado ESP {esp}")
+
+
+# ============================================================
+
 
 def main():
+
     global BEACON_ATUAL
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+
     client.tls_set(certifi.where())
 
     client.username_pw_set(
-    username=NOME_USUARIO,
-    password=SENHA
+        NOME_USUARIO,
+        SENHA
     )
 
     client.on_connect = on_connect
     client.on_message = on_message
 
     client.connect(
-        host=HOST,
-        port=PORTA
+        HOST,
+        PORTA
     )
 
     client.loop_start()
 
     while True:
-        for beacon_id in BEACON_IDS:
 
-            BEACON_ATUAL = beacon_id
+        for beacon in BEACON_IDS:
 
-            ready[:] = [False] * NUMERO_ESPS
+            print()
+            print("=" * 60)
+            print("Localizando", beacon)
+            print("=" * 60)
 
-            timeout = False
+            BEACON_ATUAL = beacon
+
+            resetar_estado()
+
+            notificar_esps(client, beacon)
 
             inicio = time.time()
-            notifica_todos_esps_pendentes(mqtt_client=client, beacon_id=beacon_id)
 
-            while not all(ready):
-                if time.time() - inicio > 10:
-                    print("Timeout")
-                    timeout = True
+            while True:
+
+                if numero_respostas() >= MINIMO_ESPS:
                     break
 
-                #notifica_todos_esps_pendentes(mqtt_client=client, beacon_id=beacon_id)
-                #time.sleep(0.5)
+                if time.time() - inicio > TIMEOUT:
+                    break
 
-            imprime_informacoes(client)
-            if timeout:                
+                time.sleep(0.01)
+
+            imprime_informacoes()
+
+            if numero_respostas() < MINIMO_ESPS:
+
+                print("Poucas respostas. Ignorando.")
+
                 continue
 
+            with lock:
 
-            posicao = trilateracao3d(posicoes_esp32, distancias)
+                posicoes = []
+                dist = []
 
-            enviar_para_banco_dados(client=client, posicao=posicao, beacon_id=beacon_id)
+                for i in range(NUMERO_ESPS):
 
-            print(beacon_id, posicao)
+                    if ready[i]:
 
-            time.sleep(5)
+                        posicoes.append(posicoes_esp32[i])
+                        dist.append(distancias[i])
+
+            posicao = trilateracao3d(
+                np.array(posicoes),
+                np.array(dist)
+            )
+
+            enviar_para_banco_dados(
+                client,
+                posicao,
+                beacon
+            )
+
+            print("Posição:", posicao)
+
+            time.sleep(2)
+
         time.sleep(1)
+
 
 if __name__ == "__main__":
     main()

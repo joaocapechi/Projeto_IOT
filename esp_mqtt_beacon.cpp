@@ -9,6 +9,20 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 
+
+struct BeaconConfig
+{
+    String id;
+    int potenciaReferencia;
+};
+
+BeaconConfig beacons[] =
+{
+    {"51:00:23:11:04:6d", -59},
+    {"51:00:23:11:04:38", -63},
+}; // aviso: ainda faltar calibrar o 38
+
+
 // variaveis
 WiFiClientSecure conexaoSegura;
 BLEScan *scannerBluetooth;
@@ -22,6 +36,17 @@ int NUMERO_ARDUINO_INT = 1;
 const char *NUMERO_ARDUINO_STR = "1";
 String beacons_ids_string[] = {"51:00:23:11:04:6d", "51:00:23:11:04:38"};
 int indice_beacon_atual = 0;
+
+int obterPotenciaReferencia(const String& beacon)
+{
+    for (auto& b : beacons)
+    {
+        if (b.id == beacon)
+            return b.potenciaReferencia;
+    }
+
+    return -59;
+}
 
 int encontrar_beacon_requisitado(String beacon)
 {
@@ -102,13 +127,13 @@ void recebeuMensagem(String topico, String conteudo)
   }
 }
 
-float calcularDistancia(int potenciaSinal)
+float calcularDistancia(int potenciaSinal, int potencia_referencia)
 {
   if (potenciaSinal == 0)
   {
     return -1.0; // Não foi possível estimar a distância
   }
-  int potenciaReferencia = -59; // dBm medido com distância de 1 metro
+  int potenciaReferencia = potencia_referencia; // dBm medido com distância de 1 metro
   float razao = potenciaSinal * 1.0 / potenciaReferencia;
   float distancia;
   if (razao < 1.0)
@@ -135,12 +160,16 @@ class MeuRastreador : public BLEAdvertisedDeviceCallbacks
     oBeacon.setData(dadosBeacon);
     String idDispositivo = dispositivoBluetooth.getAddress().toString();
 
+    int potencia_referencia = -59;
+
     if (idDispositivo == beacons_ids_string[indice_beacon_atual])
     {
+
+      potencia_referencia = obterPotenciaReferencia(idDispositivo);
       scannerBluetooth->stop();
 
       int potenciaSinal = dispositivoBluetooth.getRSSI();
-      distancia = calcularDistancia(potenciaSinal);
+      distancia = calcularDistancia(potenciaSinal, potencia_referencia);
       Serial.printf("Beacon encontrado a %.1f metros!\n", distancia);
     }
   }
