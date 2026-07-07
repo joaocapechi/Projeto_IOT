@@ -20,7 +20,7 @@ MQTTClient mqtt(1000);
 int NUMERO_BEACONS = 3;
 int NUMERO_ARDUINO_INT = 1;
 const char *NUMERO_ARDUINO_STR = "1";
-String beacons_ids_string[] = {"fda50693-a4e2-4fb1-afcf-c6eb07647825", "BBB-CCC-DDD-EEE-ASASASASA", "A-B-C-D"};
+String beacons_ids_string[] = {"51:00:23:11:04:6d", "51:00:23:11:04:38"};
 int indice_beacon_atual = 0;
 
 int encontrar_beacon_requisitado(String beacon)
@@ -140,6 +140,8 @@ class MeuRastreador : public BLEAdvertisedDeviceCallbacks
       int potenciaSinal = dispositivoBluetooth.getRSSI();
       distancia = calcularDistancia(potenciaSinal);
       Serial.printf("Beacon encontrado a %.1f metros!\n", distancia);
+
+      Serial.println(dispositivoBluetooth.getAddress().toString());
     }
   }
 };

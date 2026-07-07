@@ -17,14 +17,15 @@ WiFiClient conexao;
 MQTTClient mqtt(1000);
 
 // Constantes
-int NUMERO_BEACONS = 3;
-int NUMERO_ARDUINO_INT = 3;
-const char *NUMERO_ARDUINO_STR = "3";
-String beacons_ids_string[] = {"fda50693-a4e2-4fb1-afcf-c6eb07647825", "BBB-CCC-DDD-EEE-ASASASASA", "A-B-C-D"};
+int NUMERO_BEACONS = 2;
+int NUMERO_ARDUINO_INT = 1;
+const char *NUMERO_ARDUINO_STR = "1";
+String beacons_ids_string[] = {"51:00:23:11:04:6d", "51:00:23:11:04:38"};
 int indice_beacon_atual = 0;
 
 int encontrar_beacon_requisitado(String beacon)
 {
+  distancia = 0;
   for (int i = 0; i < NUMERO_BEACONS; i++)
   {
     if (beacon == beacons_ids_string[i])
@@ -32,7 +33,7 @@ int encontrar_beacon_requisitado(String beacon)
       return i;
     }
   }
-  return 0;
+  return indice_beacon_atual;
 }
 
 void reconectarWiFi()
@@ -60,7 +61,7 @@ void reconectarMQTT()
     while (!mqtt.connected())
     {
 
-      mqtt.connect(NUMERO_ARDUINO_STR, "USERNAME", "SENHA");// anonimizacao
+      mqtt.connect(NUMERO_ARDUINO_STR, "aula", "zowmad-tavQez");// anonimizacao
       Serial.print(".");
       delay(1000);
     }
@@ -77,11 +78,13 @@ void recebeuMensagem(String topico, String conteudo)
 
   if (topico.startsWith("A1/esp32/" + numero_ard))
   {
-    String beacon_requisitado = topico.substring(9);
-    //Serial.println(beacon_requisitado);
+    //Serial.println("Recebi mensagem. Enviando para o MQTT.");
+    String beacon_requisitado = topico.substring(11);
+    Serial.println("Beacon requisitado: " + beacon_requisitado);
     
     // se recebi mensagem, tenho que identificar o indice do beacon_atual (passado como parametro apos o numero ard)
     indice_beacon_atual = encontrar_beacon_requisitado(beacon_requisitado);
+    Serial.println("Indice atual " + String(indice_beacon_atual));
 
     // agora que ele encontrou o beacon, entao podemos pedir para medir a distancia
     scannerBluetooth->start(1, true); // escaneie durante 1s
@@ -130,8 +133,7 @@ class MeuRastreador : public BLEAdvertisedDeviceCallbacks
     }
     BLEBeacon oBeacon = BLEBeacon();
     oBeacon.setData(dadosBeacon);
-    String idDispositivo = oBeacon.getProximityUUID().toString();
-
+    String idDispositivo = dispositivoBluetooth.getAddress().toString();
 
     if (idDispositivo == beacons_ids_string[indice_beacon_atual])
     {
@@ -148,11 +150,11 @@ void setup()
 {
   Serial.begin(115200);
   delay(500);
-  Serial.println("Projeto Final - Semana 1");
+  Serial.println("Projeto Final - Semana 2");
 
   reconectarWiFi();
   conexaoSegura.setCACert(certificado1);
-  mqtt.begin("HOST", 1883, conexao); // anonimizacao
+  mqtt.begin("mqtt.janks.dev.br", 1883, conexao); // anonimizacao
   mqtt.onMessage(recebeuMensagem);
   mqtt.setKeepAlive(10);
   mqtt.setWill("tópico da desconexão", "conteúdo");
