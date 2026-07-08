@@ -12,6 +12,7 @@ ArduinoJson/
 # Python
 venv/
 .env
+__pycache__/
 
 # Other files
 *.jpg
