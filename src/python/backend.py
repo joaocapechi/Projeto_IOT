@@ -60,7 +60,11 @@ BEACON_IDS = [
     "51:00:23:11:04:38",
 ]
 
+COMPRIMENTO_SALA = 15.5
+LARGURA_SALA = 3.3
+
 TOPICO_LOCALIZACAO = "A1/esp32/localizacao"
+TOPICO_ALERTA = "A1/esp32/alerta"
 
 TOPICOS_DISTANCIA = [
     f"A1/esp32/{i}/distancia"
@@ -121,6 +125,7 @@ def imprime_informacoes():
         print("Beacon:", BEACON_ATUAL)
 
         for i in range(NUMERO_ESPS):
+
             print(
                 f"ESP{i+1}: "
                 f"Ready={ready[i]} "
@@ -141,8 +146,9 @@ def imprime_informacoes():
 '''
 HOST = "mqtt.janks.dev.br"
 PORTA = 8883
-USERNAME = os.getenv("username")
-PASSWORD = os.getenv("password")
+USERNAME = "aula"
+PASSWORD = "zowmad-tavQez"
+
 
 def on_connect(client, userdata, flags, rc, properties=None):
     print("Connected to MQTT Broker successfully!")
@@ -168,6 +174,7 @@ def enviar_para_banco_dados(client, posicao, beacon_id):
 
 def on_message(client, userdata, msg):
     global current_image
+    global BEACON_ATUAL
     
     # 1. Handle Incoming Photo
     if msg.topic == "A1/esp32/camera":
@@ -178,7 +185,6 @@ def on_message(client, userdata, msg):
 
         if current_image is not None:
             print("Image received and buffered")
-        
     # 2. Handle Image Processing Bounding Box
     elif msg.topic == "A1/esp32/camera/qtd":
         if current_image is None:
@@ -219,15 +225,17 @@ def on_message(client, userdata, msg):
                         )
                         
                         if color_name in ["Black", "Blue"]:
-                            client.publish("A1/camera/alerta", payload="Alerta", qos=2)
+                            # client.publish("A1/esp32/camera/alerta", payload="Alerta", qos=2)
+                            print("*" * 25)
+                            print("Alerta".center(25,"*"))
+                            print("*" * 25)
                     
         
         # --- SAVE THE IMAGE HERE ---
         # This saves the image in the same folder as your Python script
         cv2.imwrite("detected_person.jpg", current_image)
-
-    if msg.topic in INDICES:
-        global BEACON_ATUAL
+    # 3. Handle beacons
+    elif msg.topic in INDICES:
         try:
             dados = json.loads(msg.payload.decode())
 
@@ -268,7 +276,9 @@ def main():
     client.loop_start()
 
     while True:
+
         for beacon in BEACON_IDS:
+
             print()
             print("=" * 60)
             print("Localizando", beacon)
@@ -283,6 +293,7 @@ def main():
             inicio = time.time()
 
             while True:
+
                 if numero_respostas() >= MINIMO_ESPS:
                     break
 
@@ -294,20 +305,20 @@ def main():
             imprime_informacoes()
 
             if numero_respostas() < MINIMO_ESPS:
+
                 print("Poucas respostas. Ignorando.")
+
                 continue
 
             with lock:
-                posicoes = []
-                dist = []
+                dist = [0, 0, 0, 0]
 
                 for i in range(NUMERO_ESPS):
                     if ready[i]:
-                        posicoes.append(posicoes_esp32[i])
-                        dist.append(distancias[i])
+                        dist[i] = distancias[i]
 
             posicao = trilateracao3d(
-                np.array(posicoes),
+                np.array(posicoes_esp32),
                 np.array(dist)
             )
 
@@ -316,8 +327,14 @@ def main():
                 posicao,
                 beacon
             )
+            
+            # verificando se a posicao esta dentro oui fora da sala:
+            if ((posicao[0] > LARGURA_SALA or posicao[0] < 0) or (posicao[1] > COMPRIMENTO_SALA or posicao[1] < 0)):
+                print("Alerta enviado para o telegram do dono")
+                client.publish(topic=TOPICO_ALERTA, payload="SAIU DA SALA", qos=2)
 
             print("Posição:", posicao)
+
             time.sleep(2)
 
         time.sleep(1)
@@ -325,3 +342,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
