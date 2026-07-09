@@ -14,6 +14,7 @@ from ultralytics import YOLO
 
 load_dotenv()
 
+
 '''
 ============================================================
                        Image Processing
@@ -125,7 +126,6 @@ def imprime_informacoes():
         print("Beacon:", BEACON_ATUAL)
 
         for i in range(NUMERO_ESPS):
-
             print(
                 f"ESP{i+1}: "
                 f"Ready={ready[i]} "
@@ -230,7 +230,6 @@ def on_message(client, userdata, msg):
                             print("Alerta".center(25,"*"))
                             print("*" * 25)
                     
-        
         # --- SAVE THE IMAGE HERE ---
         # This saves the image in the same folder as your Python script
         cv2.imwrite("detected_person.jpg", current_image)
@@ -276,9 +275,7 @@ def main():
     client.loop_start()
 
     while True:
-
         for beacon in BEACON_IDS:
-
             print()
             print("=" * 60)
             print("Localizando", beacon)
@@ -293,7 +290,6 @@ def main():
             inicio = time.time()
 
             while True:
-
                 if numero_respostas() >= MINIMO_ESPS:
                     break
 
@@ -305,7 +301,6 @@ def main():
             imprime_informacoes()
 
             if numero_respostas() < MINIMO_ESPS:
-
                 print("Poucas respostas. Ignorando.")
 
                 continue
