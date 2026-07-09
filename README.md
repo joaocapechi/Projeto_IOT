@@ -37,6 +37,8 @@ As seguintes bibliotecas devem estar instaladas (na pasta `lib/` ou pela Arduino
 | ArduinoJson                   | 7.4.3                      |
 | lab_human_detection_inference | Disponível no [Edge Impulse](https://studio.edgeimpulse.com/public/338320/live) |
 
+---
+
 ## Backend em Python
 
 Crie um ambiente virtual:
@@ -50,6 +52,8 @@ Depois, instale todas as dependências:
 ```bash
 pip install -r requirements.txt
 ```
+
+---
 
 # Arquivos de Configuração
 
