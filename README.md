@@ -107,7 +107,59 @@ Antes de compilar o projeto da câmera, configure no arquivo `camera.cpp` e `bea
 
 ## Node-Red
 
+Fluxo responsável por conectar o broker MQTT, o banco PostgreSQL e o Telegram. Escuta os dados enviados pelos ESP32 (câmera e beacons), grava no histórico e dispara alertas.
+
+### Tópicos MQTT consumidos
+
+| Tópico | Função |
+| --- | --- |
+| `A1/esp32/alerta` | Alerta de furto/movimentação suspeita de objeto |
+| `A1/esp32/camera` | Imagem capturada pela câmera |
+| `A1/esp32/camera/qtd` | Quantidade de pessoas detectadas |
+| `A1/esp32/camera/alerta` | Alerta de pessoa não autorizada |
+| `A1/esp32/localizacao` | Posição (x, y, z) dos beacons |
+
+### O que cada fluxo faz
+
+* **Alerta (objeto)** — formata a mensagem de alerta, envia no Telegram e grava o histórico no banco.
+* **Câmera (imagem)** — recebe a imagem capturada e a envia diretamente para o Telegram.
+* **Contagem de pessoas** — grava no banco quantas pessoas foram detectadas no momento.
+* **Alerta de pessoa não autorizada** — grava o alerta no banco e notifica pelo Telegram.
+* **Localização dos beacons** — grava no banco a posição (x, y, z) de cada beacon detectado.
+
+### Padrão de gravação no banco
+
+Todas as gravações no PostgreSQL usam parâmetros ao invés de montar a consulta com o valor embutido diretamente, o que evita erros e problemas de segurança.
+
+### Telegram
+
+Alertas e imagens são enviados sempre para o mesmo destinatário configurado no fluxo, com uma mensagem padronizada indicando o tipo de evento ocorrido.
+
 ## Grafana
+
+Painel customizado (ECharts) que exibe, sobre a planta baixa da sala, o status em tempo real do ambiente monitorado.
+
+O painel mostra:
+
+* **Câmera** e seu campo de visão (cone de 120°, alcance de 2,5m);
+* **Beacons** com suas posições atuais na sala;
+* **Contagem de pessoas** no ambiente;
+* **Cor de status**, indicando a situação atual:
+
+| Cor | Situação |
+| --- | --- |
+| 🔵 Azul | Nenhuma pessoa detectada |
+| 🟢 Verde | Pessoas detectadas, sem alerta |
+| 🔴 Vermelho | Pessoas detectadas + alerta recente |
+
+### Fontes de dados
+
+O painel consome duas queries:
+
+* **Query 1** — posição dos beacons (`beacon_id`, posição X, posição Y);
+* **Query 2** — status da sala (`qtd_pessoas`, `alerta_recente`).
+
+Sem dados, o painel exibe apenas a planta baixa vazia.
 
 # Execução
 

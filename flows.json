@@ -1,0 +1,827 @@
+[
+    {
+        "id": "d7636ca17445c0fc",
+        "type": "tab",
+        "label": "Fluxo 2",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "27af9ee4e7f137a5",
+        "type": "mqtt in",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "topic": "A1/esp32/alerta",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "fde3a656949aa213",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 180,
+        "y": 240,
+        "wires": [
+            [
+                "39a0842cddaccc29",
+                "3039048fdc05ae38",
+                "1b4b66b343b83c00"
+            ]
+        ]
+    },
+    {
+        "id": "3039048fdc05ae38",
+        "type": "function",
+        "z": "d7636ca17445c0fc",
+        "name": "function 1",
+        "func": "var chatid = 8687803156;\nvar mensagem = msg.payload;\n\nmsg.payload = {\n    chatId: chatid,\n    type: \"message\",\n    content: \"🚨 Alerta! \" + mensagem + \".\"\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 240,
+        "wires": [
+            [
+                "c012fa2ae32e17e2",
+                "016e3d187465b130"
+            ]
+        ]
+    },
+    {
+        "id": "c012fa2ae32e17e2",
+        "type": "telegram sender",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "bot": "e0ca385b7e9ebd5a",
+        "haserroroutput": false,
+        "outputs": 1,
+        "x": 890,
+        "y": 240,
+        "wires": [
+            [
+                "65ce353d698b2549"
+            ]
+        ]
+    },
+    {
+        "id": "39a0842cddaccc29",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 1",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "65ce353d698b2549",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 4",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1220,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "2e1288beed4b16b8",
+        "type": "postgresql",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "query": "INSERT INTO a1_historico_alertas (alertas) VALUES\n($1)",
+        "postgreSQLConfig": "69e457cb12608ecf",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 870,
+        "y": 180,
+        "wires": [
+            [
+                "8f4738c8610b6e80"
+            ]
+        ]
+    },
+    {
+        "id": "8f4738c8610b6e80",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 5",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1220,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "016e3d187465b130",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 6",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 860,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "05bb2d984bb6755c",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 7",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 860,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "031241bd03fc3733",
+        "type": "mqtt in",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "topic": "A1/esp32/camera",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "fde3a656949aa213",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 180,
+        "y": 440,
+        "wires": [
+            [
+                "9657cc3f6180573e",
+                "c3a817fc5d8583b2",
+                "88f0ec38970e6023"
+            ]
+        ]
+    },
+    {
+        "id": "af31330726ef0839",
+        "type": "telegram sender",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "bot": "e0ca385b7e9ebd5a",
+        "haserroroutput": false,
+        "outputs": 1,
+        "x": 1250,
+        "y": 440,
+        "wires": [
+            [
+                "64d36168083d5755"
+            ]
+        ]
+    },
+    {
+        "id": "c3a817fc5d8583b2",
+        "type": "image",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "width": 160,
+        "data": "payload",
+        "dataType": "msg",
+        "thumbnail": false,
+        "active": false,
+        "pass": false,
+        "outputs": 0,
+        "x": 540,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "9657cc3f6180573e",
+        "type": "function",
+        "z": "d7636ca17445c0fc",
+        "name": "function 2",
+        "func": "const byteArray = msg.payload.data || msg.payload;\nconst realBuffer = Buffer.from(new Uint8Array(byteArray));\n\nmsg.payload = {\n    chatId: 8687803156,\n    type: \"photo\",\n    content: realBuffer\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 440,
+        "wires": [
+            [
+                "8509af0a72c98d81",
+                "e1509b8acbebe32b"
+            ]
+        ]
+    },
+    {
+        "id": "64d36168083d5755",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 8",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1220,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "8509af0a72c98d81",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 9",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 860,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "88f0ec38970e6023",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 10",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "e1509b8acbebe32b",
+        "type": "delay",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "pauseType": "rate",
+        "timeout": "5",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "5",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 880,
+        "y": 440,
+        "wires": [
+            [
+                "af31330726ef0839"
+            ]
+        ]
+    },
+    {
+        "id": "3f1b6c9838c1dbcf",
+        "type": "mqtt in",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "topic": "A1/esp32/localizacao",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "fde3a656949aa213",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 160,
+        "y": 640,
+        "wires": [
+            [
+                "a3b3354954121f13",
+                "50bb634740544ebc"
+            ]
+        ]
+    },
+    {
+        "id": "a3b3354954121f13",
+        "type": "change",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "rules": [
+            {
+                "t": "move",
+                "p": "payload",
+                "pt": "msg",
+                "to": "queryParameters",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 550,
+        "y": 640,
+        "wires": [
+            [
+                "0d27c571aca585fa",
+                "e2654e863776a10c"
+            ]
+        ]
+    },
+    {
+        "id": "e2654e863776a10c",
+        "type": "postgresql",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "query": "INSERT INTO a1_localizacao (beacon_id, posicao_x, posicao_y, posicao_z) VALUES\n($beacon_id, $posicao_x, $posicao_y, $posicao_z);",
+        "postgreSQLConfig": "69e457cb12608ecf",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 870,
+        "y": 640,
+        "wires": [
+            [
+                "7b4c7d782c35b029"
+            ]
+        ]
+    },
+    {
+        "id": "7b4c7d782c35b029",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 11",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1220,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "0d27c571aca585fa",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 12",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 860,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "50bb634740544ebc",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 13",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "e805b20adfaa0bb5",
+        "type": "mqtt in",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "topic": "A1/esp32/camera/qtd",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "fde3a656949aa213",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 160,
+        "y": 780,
+        "wires": [
+            [
+                "99abecaa0bb292b9",
+                "12745049854289a7"
+            ]
+        ]
+    },
+    {
+        "id": "99abecaa0bb292b9",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 2",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "10dea017f948c10b",
+        "type": "postgresql",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "query": "INSERT INTO a1_historico_pessoas (qtd_pessoas) VALUES ($1);",
+        "postgreSQLConfig": "69e457cb12608ecf",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 870,
+        "y": 780,
+        "wires": [
+            [
+                "bc4e41bcbded8347"
+            ]
+        ]
+    },
+    {
+        "id": "bc4e41bcbded8347",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 14",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1220,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "130d97d02ba97fa6",
+        "type": "mqtt in",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "topic": "A1/esp32/camera/alerta",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "fde3a656949aa213",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 160,
+        "y": 920,
+        "wires": [
+            [
+                "9b0ad223ca89762c",
+                "eb0be3b1261f7c52",
+                "5b4018306e535209"
+            ]
+        ]
+    },
+    {
+        "id": "9b0ad223ca89762c",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 15",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 860,
+        "wires": []
+    },
+    {
+        "id": "b9c30b8ab69b35cd",
+        "type": "postgresql",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "query": "INSERT INTO a1_historico_alertas_camera\n (alertas) VALUES\n($1)",
+        "postgreSQLConfig": "69e457cb12608ecf",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 870,
+        "y": 920,
+        "wires": [
+            [
+                "f9825734a2b14889"
+            ]
+        ]
+    },
+    {
+        "id": "4e06a7bed168992c",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 16",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 860,
+        "y": 860,
+        "wires": []
+    },
+    {
+        "id": "f9825734a2b14889",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 17",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1220,
+        "y": 920,
+        "wires": []
+    },
+    {
+        "id": "12745049854289a7",
+        "type": "function",
+        "z": "d7636ca17445c0fc",
+        "name": "function 3",
+        "func": "msg.params = [msg.payload];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 780,
+        "wires": [
+            [
+                "10dea017f948c10b",
+                "b116a14cfb552bc4"
+            ]
+        ]
+    },
+    {
+        "id": "b116a14cfb552bc4",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 3",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 860,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "eb0be3b1261f7c52",
+        "type": "function",
+        "z": "d7636ca17445c0fc",
+        "name": "function 4",
+        "func": "msg.params = [msg.payload];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 920,
+        "wires": [
+            [
+                "b9c30b8ab69b35cd",
+                "4e06a7bed168992c"
+            ]
+        ]
+    },
+    {
+        "id": "1b4b66b343b83c00",
+        "type": "function",
+        "z": "d7636ca17445c0fc",
+        "name": "function 5",
+        "func": "msg.params = [msg.payload];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 180,
+        "wires": [
+            [
+                "2e1288beed4b16b8",
+                "05bb2d984bb6755c"
+            ]
+        ]
+    },
+    {
+        "id": "5b4018306e535209",
+        "type": "function",
+        "z": "d7636ca17445c0fc",
+        "name": "function 6",
+        "func": "var chatid = 8687803156;\nvar mensagem = msg.payload;\n\nmsg.payload = {\n    chatId: chatid,\n    type: \"message\",\n    content: \"🚨 Alerta! \" + mensagem + \" pessoa não autorizada.\"\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 980,
+        "wires": [
+            [
+                "037c54404789d0cd"
+            ]
+        ]
+    },
+    {
+        "id": "037c54404789d0cd",
+        "type": "telegram sender",
+        "z": "d7636ca17445c0fc",
+        "name": "",
+        "bot": "e0ca385b7e9ebd5a",
+        "haserroroutput": false,
+        "outputs": 1,
+        "x": 890,
+        "y": 980,
+        "wires": [
+            [
+                "aa1662724b44b843"
+            ]
+        ]
+    },
+    {
+        "id": "aa1662724b44b843",
+        "type": "debug",
+        "z": "d7636ca17445c0fc",
+        "name": "debug 18",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1220,
+        "y": 980,
+        "wires": []
+    },
+    {
+        "id": "fde3a656949aa213",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "mqtt.janks.dev.br",
+        "port": "8883",
+        "tls": "",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": "5",
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "e0ca385b7e9ebd5a",
+        "type": "telegram bot",
+        "botname": "AlertasA1",
+        "usernames": "",
+        "chatids": "",
+        "baseapiurl": "",
+        "testenvironment": false,
+        "updatemode": "polling",
+        "pollinterval": "300",
+        "usesocks": false,
+        "sockshost": "",
+        "socksprotocol": "socks5",
+        "socksport": "6667",
+        "socksusername": "anonymous",
+        "sockspassword": "",
+        "bothost": "",
+        "botpath": "",
+        "localbothost": "0.0.0.0",
+        "localbotport": "8443",
+        "publicbotport": "8443",
+        "privatekey": "",
+        "certificate": "",
+        "useselfsignedcertificate": false,
+        "sslterminated": false,
+        "verboselogging": false
+    },
+    {
+        "id": "69e457cb12608ecf",
+        "type": "postgreSQLConfig",
+        "name": "",
+        "host": "postgresql.janks.dev.br",
+        "hostFieldType": "str",
+        "port": "5432",
+        "portFieldType": "num",
+        "database": "projeto",
+        "databaseFieldType": "str",
+        "ssl": "true",
+        "sslFieldType": "bool",
+        "applicationName": "",
+        "applicationNameType": "str",
+        "max": "10",
+        "maxFieldType": "num",
+        "idle": "1000",
+        "idleFieldType": "num",
+        "connectionTimeout": "10000",
+        "connectionTimeoutFieldType": "num",
+        "user": "iot",
+        "userFieldType": "str",
+        "password": "pepcon-garton",
+        "passwordFieldType": "str"
+    }
+]
